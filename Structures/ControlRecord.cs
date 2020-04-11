@@ -67,9 +67,9 @@ namespace netnje.Structures
 			Array.Copy(ControlRecordBytes, 28, senderIP, 0, 4);
 
 			//de-EBCDIC-ize
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), requestType);
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), senderName);
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), receiverName);
+			requestType = EbcdicEncoding.Convert(EbcdicEncoding.GetEncoding("EBCDIC-US"), Encoding.ASCII, requestType);
+			senderName = EbcdicEncoding.Convert(EbcdicEncoding.GetEncoding("EBCDIC-US"), Encoding.ASCII, senderName);
+			receiverName = EbcdicEncoding.Convert(EbcdicEncoding.GetEncoding("EBCDIC-US"), Encoding.ASCII, receiverName);
 
 			this.RequestType = ASCIIEncoding.ASCII.GetString(requestType);
 			this.SenderName = ASCIIEncoding.ASCII.GetString(senderName);
@@ -97,9 +97,9 @@ namespace netnje.Structures
 			byte[] receiverName = Encoding.ASCII.GetBytes(this.ReceiverName);
 			byte[] senderIP = BitConverter.GetBytes(Utils.stringToNjeIP(this.SenderIP));
 			byte[] receiverIP = BitConverter.GetBytes(Utils.stringToNjeIP(this.ReceiverIP));
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), requestType);
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), senderName);
-			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), receiverName);
+			requestType = EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), requestType);
+			senderName = EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), senderName);
+			receiverName = EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), receiverName);
 
 			if (BitConverter.IsLittleEndian)
 			{
@@ -114,8 +114,8 @@ namespace netnje.Structures
 			byte[] receiverNamePad = { 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40 };
 
 			Array.Copy(requestType, requestTypePad, requestType.Length <= 8 ? requestType.Length : 8);
-			Array.Copy(senderName, senderNamePad, requestType.Length <= 8 ? requestType.Length : 8);
-			Array.Copy(receiverName, receiverNamePad, requestType.Length <= 8 ? requestType.Length : 8);
+			Array.Copy(senderName, senderNamePad, requestType.Length <= 8 ? senderName.Length : 8);
+			Array.Copy(receiverName, receiverNamePad, requestType.Length <= 8 ? receiverName.Length : 8);
 
 			// assemble control record
 

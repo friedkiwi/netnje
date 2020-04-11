@@ -20,13 +20,10 @@ namespace netnje
                 log.InfoFormat("Embedded resource: {0}", name);
             }
 
-            //NjeClient client = new NjeClient("UKYJVMS", "FRYJLX1", "bsdm.yvanj.me", 175);
-            //client.Connect();
+            NjeClient client = new NjeClient("NETNJE", "FRYJLX1", "bsdm.yvanj.me", 175);
+            client.Connect();
 
-            ControlRecord controlRecord = new ControlRecord("OPEN", "UKYJVMS", "127.0.0.1", "FRYJLX1", "bsdm.yvanj.me", 0);
-
-            byte[] result = controlRecord.GetBytes();
-
+            
             Console.WriteLine("Hit enter");
             Console.ReadLine();
         }
