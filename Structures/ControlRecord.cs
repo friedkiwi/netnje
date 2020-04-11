@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using JonSkeet.Ebcdic;
+
 
 namespace netnje.Structures
 {
@@ -45,12 +47,54 @@ namespace netnje.Structures
 
 		public void ParseControlRecord(byte[] ControlRecordBytes)
 		{
-
+			if (ControlRecordBytes.Length != 33)
+			{
+				throw new FormatException("Invalid ControlRecord structure.");
+			}
 		}
 
 		public byte[] GetBytes()
 		{
+			byte[] controlRecordBytes = new byte[33];
 
+			// encode control record bytes
+
+			byte[] requestType = Encoding.ASCII.GetBytes(this.RequestType);
+			byte[] senderName = Encoding.ASCII.GetBytes(this.SenderName);
+			byte[] receiverName = Encoding.ASCII.GetBytes(this.ReceiverName);
+			byte[] senderIP = BitConverter.GetBytes(Utils.stringToNjeIP(this.SenderIP));
+			byte[] receiverIP = BitConverter.GetBytes(Utils.stringToNjeIP(this.ReceiverIP));
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), requestType);
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), senderName);
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), receiverName);
+
+			if (BitConverter.IsLittleEndian)
+			{
+				Array.Reverse(senderIP);
+				Array.Reverse(receiverIP);
+			}
+
+			// create padded versions where necessary
+
+			byte[] requestTypePad = { 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40 };
+			byte[] senderNamePad = { 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40 };
+			byte[] receiverNamePad = { 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40 };
+
+			Array.Copy(requestType, requestTypePad, requestType.Length <= 8 ? requestType.Length : 8);
+			Array.Copy(senderName, senderNamePad, requestType.Length <= 8 ? requestType.Length : 8);
+			Array.Copy(receiverName, receiverNamePad, requestType.Length <= 8 ? requestType.Length : 8);
+
+			// assemble control record
+
+			Array.Copy(requestTypePad, 0, controlRecordBytes, 0, 8);
+			Array.Copy(senderNamePad, 0, controlRecordBytes, 8, 8);
+			Array.Copy(senderIP, 0, controlRecordBytes, 16, 4);
+			Array.Copy(receiverNamePad, 0, controlRecordBytes, 20, 8);
+			Array.Copy(receiverIP, 0, controlRecordBytes, 28, 4);
+
+			controlRecordBytes[32] = ReasonCode;
+
+			return controlRecordBytes;
 		}
     }
 }

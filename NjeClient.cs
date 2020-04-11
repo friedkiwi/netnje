@@ -24,6 +24,7 @@ namespace netnje
             this.ServerNodeID = ServerNodeID;
             this.ServerPort = ServerPort;
             this.ServerHost = ServerHost;
+            
 
             tcpClient = new TcpClient();
             
