@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using JonSkeet.Ebcdic;
+using System.Net;
 
 
 namespace netnje.Structures
@@ -51,6 +52,38 @@ namespace netnje.Structures
 			{
 				throw new FormatException("Invalid ControlRecord structure.");
 			}
+
+			// allocate arrays to ingest the record
+			byte[] requestType = new byte[8];
+			byte[] senderName = new byte[8];
+			byte[] receiverName = new byte[8];
+			byte[] senderIP = new byte[4];
+			byte[] receiverIP = new byte[4];
+
+			Array.Copy(ControlRecordBytes, 0, requestType, 0, 8);
+			Array.Copy(ControlRecordBytes, 8, senderName, 0, 8);
+			Array.Copy(ControlRecordBytes, 20, receiverName, 0, 8);
+			Array.Copy(ControlRecordBytes, 16, senderIP, 0, 4);
+			Array.Copy(ControlRecordBytes, 28, senderIP, 0, 4);
+
+			//de-EBCDIC-ize
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), requestType);
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), senderName);
+			EbcdicEncoding.Convert(Encoding.ASCII, EbcdicEncoding.GetEncoding("EBCDIC-US"), receiverName);
+
+			this.RequestType = ASCIIEncoding.ASCII.GetString(requestType);
+			this.SenderName = ASCIIEncoding.ASCII.GetString(senderName);
+			this.ReceiverName = ASCIIEncoding.ASCII.GetString(receiverName);
+
+			// get IPs
+			IPAddress senderIPaddr = new IPAddress(senderIP);
+			IPAddress receiverIPaddr = new IPAddress(receiverIP);
+
+			this.ReceiverIP = receiverIPaddr.ToString();
+			this.SenderIP = senderIPaddr.ToString();
+
+			// get Reason Code
+			this.ReasonCode = ControlRecordBytes[32];
 		}
 
 		public byte[] GetBytes()
