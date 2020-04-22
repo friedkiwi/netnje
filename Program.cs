@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using netnje.Structures;
+using System.Threading;
 
 namespace netnje
 {
@@ -22,6 +23,12 @@ namespace netnje
 
             NjeClient client = new NjeClient("NETNJE", "FRYJLX1", "bsdm.yvanj.me", 175);
             client.Connect();
+
+            while(client.IsConnected)
+            {
+                client.Poll();
+                Thread.Sleep(1000);
+            }
 
             
             Console.WriteLine("Hit enter");

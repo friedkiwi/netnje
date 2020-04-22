@@ -71,9 +71,9 @@ namespace netnje.Structures
 			senderName = EbcdicEncoding.Convert(EbcdicEncoding.GetEncoding("EBCDIC-US"), Encoding.ASCII, senderName);
 			receiverName = EbcdicEncoding.Convert(EbcdicEncoding.GetEncoding("EBCDIC-US"), Encoding.ASCII, receiverName);
 
-			this.RequestType = ASCIIEncoding.ASCII.GetString(requestType);
-			this.SenderName = ASCIIEncoding.ASCII.GetString(senderName);
-			this.ReceiverName = ASCIIEncoding.ASCII.GetString(receiverName);
+			this.RequestType = ASCIIEncoding.ASCII.GetString(requestType).Trim();
+			this.SenderName = ASCIIEncoding.ASCII.GetString(senderName).Trim();
+			this.ReceiverName = ASCIIEncoding.ASCII.GetString(receiverName).Trim();
 
 			// get IPs
 			IPAddress senderIPaddr = new IPAddress(senderIP);
