@@ -16,12 +16,15 @@ namespace netnje
         private TcpClient tcpClient;
         private NetworkStream tcpStream;
         private bool _isSuccessfullyConnected = false;
-        private UInt32 sequence = 0x80;
+        private byte sequence = 0x80;
 
         public string ClientNodeID { get; set; }
         public string ServerNodeID { get; set; }
         public string ServerHost { get; set; }
         public int ServerPort { get; set; }
+
+        // Funcion Control Sequence
+        private byte[] FCS = new byte[2];
 
         public bool IsConnected
         {
@@ -31,6 +34,11 @@ namespace netnje
             }
         }
 
+        // Record Types
+        public const byte ControlRecord = 0xF0;
+
+        // Record sub-types
+        public const byte SignInRecord = 0xC9;
 
         public NjeClient(string ClientNodeID, string ServerNodeID, string ServerHost, int ServerPort)
         {
@@ -46,6 +54,9 @@ namespace netnje
             log.Debug("Instance of NjeClient instantiated.");
         }
 
+        /// <summary>
+        /// Connect to the specified NJE server.
+        /// </summary>
         public void Connect()
         {
             ControlRecord sendRecord;
@@ -108,7 +119,93 @@ namespace netnje
                 log.InfoFormat("Did not DLE ACK0 from {0}!", this.ServerNodeID);
             }
 
-            
+            // log in now
+            this.SignIn();
+        }
+
+        /// <summary>
+        /// Send a Sign In (I) record to the specified NJE server.
+        /// </summary>
+        public void SignIn()
+        {
+            SignInRecord siRecord = new SignInRecord();
+            log.InfoFormat("Sending SignIn record");
+
+            siRecord.BufferSize = 32768;
+            siRecord.LocalNode = this.ClientNodeID;
+            siRecord.RemoteNode = this.ServerNodeID;
+
+            this.FCS[0] = 0x8F;
+            this.FCS[1] = 0xCF;
+
+            SendNJE(NjeClient.ControlRecord, NjeClient.SignInRecord, siRecord.GetBytes());
+
+        }
+
+        /// <summary>
+        /// Send NJE record to host
+        /// </summary>
+        /// <param name="RecordType">The record type to be sent</param>
+        /// <param name="RecordSubType">The record sub-type to be sent</param>
+        /// <param name="Data">The data to be sent</param>
+        /// <param name="Compressed">Set to true to compress the record</param>
+        public void SendNJE(byte RecordType, byte RecordSubType, byte[] Data, bool Compressed)
+        {
+            log.InfoFormat("Sending NJE record type: {0:x} subtype: {1:x}", RecordType, RecordSubType);
+
+            byte[] dataToSend = Data;
+            byte[] records;
+            byte[] ttr;
+            byte[] ttrLen;
+
+            if (Compressed)
+            {
+                log.InfoFormat("Compressing record type: {0:x} subtype: {1:x}", RecordType, RecordSubType);
+
+                // TODO: implement record compression
+            }
+
+            records = new byte[dataToSend.Length + 7];
+
+            records[0] = 0x10; // DLE
+            records[1] = 0x02; // STX
+            records[2] = sequence;
+            records[3] = this.FCS[0];
+            records[4] = this.FCS[1];
+            records[5] = RecordType;
+            records[6] = RecordSubType;
+            Array.Copy(dataToSend, 0, records, 7, dataToSend.Length);
+
+            ttrLen = BitConverter.GetBytes((UInt16)(records.Length));
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(ttrLen);
+            }
+
+            ttr = new byte[4 + records.Length];
+            ttr[2] = ttrLen[0];
+            ttr[3] = ttrLen[1];
+            Array.Copy(records, 0, ttr, 4, records.Length);
+
+            dataToSend = MakeTTB(ttr);
+
+            tcpStream.Write(dataToSend, 0, dataToSend.Length);
+
+            IncreaseSequence();
+            log.InfoFormat("NJE record sent", RecordType, RecordSubType);
+        }
+
+
+
+        /// <summary>
+        /// Send NJE Record to host
+        /// </summary>
+        /// <param name="RecordType">The record type to be sent</param>
+        /// <param name="RecordSubType">The record sub-type to be sent</param>
+        /// <param name="Data">The data to be sent.</param>
+        public void SendNJE(byte RecordType, byte RecordSubType, byte[] Data)
+        {
+            this.SendNJE(RecordType, RecordSubType, Data, false);
         }
 
         public void Poll()
@@ -123,7 +220,7 @@ namespace netnje
         private void IncreaseSequence()
         {
             UInt32 prev = this.sequence;
-            this.sequence = (this.sequence & 0x0F) + 1 | 0x80;
+            this.sequence = (byte)((this.sequence & 0x0F) + 1 | 0x80);
             log.InfoFormat("Increased sequence from {0:X} to {1:X} on connection with node {2}.", prev, this.sequence, this.ServerNodeID);
         }
 
