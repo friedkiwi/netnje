@@ -153,28 +153,52 @@ namespace netnje
         {
             log.InfoFormat("Sending NJE record type: {0:x} subtype: {1:x}", RecordType, RecordSubType);
 
-            byte[] dataToSend = Data;
+            byte[] dataToSend;
             byte[] records;
             byte[] ttr;
             byte[] ttrLen;
 
+            List<Byte> njeRecords = new List<byte>();
+
+            njeRecords.Add(RecordType);
+            njeRecords.Add(RecordSubType);
+
             if (Compressed)
             {
                 log.InfoFormat("Compressing record type: {0:x} subtype: {1:x}", RecordType, RecordSubType);
+                int bytesRemaining = 0;
+                byte[] compressedData = new byte[1];
 
-                // TODO: implement record compression
+                List<byte> TotalCompressedData = new List<byte>();
+                bytesRemaining = CompressSCB(Data, ref compressedData);
+
+                TotalCompressedData.AddRange(compressedData);
+                log.InfoFormat("Bytes remaining: {0}", bytesRemaining);
+
+                while (bytesRemaining > 0)
+                {
+                    log.InfoFormat("Record length of 255 exceeded, bytes remaining: {0}", bytesRemaining);
+                    byte[] dataToCompress = new byte[bytesRemaining];
+                    Array.Copy(Data, Data.Length - bytesRemaining, dataToCompress, 0, bytesRemaining);
+                    bytesRemaining = CompressSCB(dataToCompress, ref compressedData);
+                    TotalCompressedData.Add(RecordType);
+                    TotalCompressedData.Add(RecordSubType);
+                    TotalCompressedData.AddRange(compressedData);
+                }
+                njeRecords.AddRange(TotalCompressedData);
+            } else
+            {
+                njeRecords.AddRange(Data);
             }
 
-            records = new byte[dataToSend.Length + 7];
+            records = new byte[njeRecords.Count + 5];
 
             records[0] = 0x10; // DLE
             records[1] = 0x02; // STX
             records[2] = sequence;
             records[3] = this.FCS[0];
             records[4] = this.FCS[1];
-            records[5] = RecordType;
-            records[6] = RecordSubType;
-            Array.Copy(dataToSend, 0, records, 7, dataToSend.Length);
+            Array.Copy(njeRecords.ToArray(), 0, records, 5, njeRecords.Count);
 
             ttrLen = BitConverter.GetBytes((UInt16)(records.Length));
             if (BitConverter.IsLittleEndian)
@@ -214,6 +238,25 @@ namespace netnje
             if (tcpStream.DataAvailable)
             {
                 log.InfoFormat("Data available on connection to node {0}.", this.ServerNodeID);
+
+                MemoryStream responseMS = new MemoryStream();
+
+                while (tcpStream.DataAvailable)
+                {
+                    byte[] rbuffer = new byte[256];
+                    int nR = tcpStream.Read(rbuffer, 0, 256);
+                    responseMS.Write(rbuffer, 0, nR);
+                }
+
+                List<DataRecord> result = ProcessData(responseMS.ToArray());
+
+                log.InfoFormat("Received {0} records", result.Count);
+
+                for (DataRecord record in result)
+                {
+                    
+                }
+
             }
         }
 
@@ -269,6 +312,120 @@ namespace netnje
             Array.Copy(data, 0, result, 8, data.Length);
 
             return result;
+        }
+
+        
+        /// <summary>
+        /// Compresses the specified bytes using String Control Byte compression
+        /// </summary>
+        /// <param name="DataToCompress">The data to compress</param>
+        /// <param name="CompressedDataOut">The buffer to store the compressed data</param>
+        /// <returns>Number of remaining bytes in the DataToCompress buffer</returns>
+        private int CompressSCB(byte[] DataToCompress, ref byte[] CompressedDataOut)
+        {
+            log.InfoFormat("Compressing data with length {0}", DataToCompress.Length);
+            byte[] tempData = new byte[254];
+            byte[] CompressedData = new byte[512];
+            int BytesLeft = DataToCompress.Length;
+            int ProcessedBytes = 0;
+            int Position = 0;
+            int OutputPosition = 0;
+            int count = 0;
+            
+            if (BytesLeft == 0)
+                return 0;
+
+            while (BytesLeft > 0 && ProcessedBytes < 253)
+            {
+                if (DataToCompress[Position] == 0x40 && DataToCompress[Position + 1] == 0x40)
+                {
+                    if (count > 0)
+                    {
+                        CompressedData[OutputPosition] = (byte)(0xC0 + count);
+                        for (int i = 0; i < count; i++)
+                            CompressedData[OutputPosition + 1 + i] = tempData[i];
+                        OutputPosition = OutputPosition + 1 + count;
+                    }
+                    count = 1;
+                    tempData = new byte[254];
+
+                    while (count < DataToCompress.Length && DataToCompress[Position + count] == 0x40 && (ProcessedBytes + count < 253))
+                    {
+                        if (count == 31)
+                            break;
+                        count++;
+                    }
+                    CompressedData[OutputPosition] = (byte)(0x80 + count);
+                    Position += count;
+                    BytesLeft -= count;
+                    ProcessedBytes += count;
+                    count = 0;
+                }
+                else if (BytesLeft > 2 && DataToCompress[Position] == DataToCompress[Position + 2] && DataToCompress[Position] == DataToCompress[Position + 1])
+                {
+                    if (count > 0)
+                    {
+                        CompressedData[OutputPosition] = (byte)(0xC0 + count);
+                        for (int i = 0; i < count; i++)
+                            CompressedData[OutputPosition + 1 + i] = tempData[i];
+                        OutputPosition = OutputPosition + 1 + count;
+                    }
+                    count = 2;
+                    tempData = new byte[254];
+
+                    while (count < DataToCompress.Length && DataToCompress[Position] == DataToCompress[Position + count] && (ProcessedBytes + count < 253))
+                    {
+                        if (count == 31)
+                            break;
+                        count++;
+                    }
+
+                    CompressedData[OutputPosition] = (byte)(0xA0 + count);
+                    CompressedData[OutputPosition + 1] = DataToCompress[Position];
+                    OutputPosition += 2;
+                    Position += count;
+                    ProcessedBytes += count;
+                    BytesLeft -= count;
+                    count = 0;
+                } else if (count == 63)
+                {
+                    CompressedData[OutputPosition] = (byte)(0xC0 + count);
+                    OutputPosition++;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        CompressedData[OutputPosition + i] = tempData[i];
+                    }
+                    OutputPosition += count;
+                    ProcessedBytes += count;
+                    tempData = new byte[254];
+                    count = 0;
+                } else
+                {
+                    tempData[count] = DataToCompress[Position];
+                    count++;
+                    ProcessedBytes++;
+                }
+
+                Position++;
+
+            }
+
+            if (count > 0)
+            {
+                CompressedData[OutputPosition] = (byte)(0xC0 + count);
+                OutputPosition++;
+                for (int i = 0; i < count; i++)
+                {
+                    CompressedData[OutputPosition + i] = tempData[i];
+                }
+            }
+            CompressedDataOut = new byte[OutputPosition + 2];
+            Array.Copy(CompressedData, CompressedDataOut, OutputPosition + 1);
+
+            log.InfoFormat("Total bytes: {0} compressed to {1}", ProcessedBytes, CompressedDataOut.Length);
+
+            return BytesLeft;
         }
 
         private List<DataRecord> ProcessData(byte[] dataReceived)

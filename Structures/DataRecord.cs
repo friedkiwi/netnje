@@ -18,6 +18,8 @@ namespace netnje.Structures
         public bool IsHeartbeat { get; set; }
         public bool IsUnknown { get; set; }
 
+        public bool IsSignInRecord { get; set; }
+
         
 
         private readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -42,6 +44,8 @@ namespace netnje.Structures
                     DLSTX = new byte[2];
                     Array.Copy(Data, 0, DLSTX, 0, 2);
                     ServerSequence = Data[2];
+
+
 
 
                 } else
