@@ -53,6 +53,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Structures\ControlRecord.cs" />
     <Compile Include="Structures\DataRecord.cs" />
+    <Compile Include="Structures\HeartbeatRecord.cs" />
+    <Compile Include="Structures\IRecord.cs" />
     <Compile Include="Structures\SignInRecord.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>

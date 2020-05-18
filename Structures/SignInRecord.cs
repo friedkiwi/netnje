@@ -6,7 +6,7 @@ using System.Text;
 
 namespace netnje.Structures
 {
-    class SignInRecord
+    class SignInRecord : IRecord
     {
         public UInt16 BufferSize { get; set; }
         
@@ -17,7 +17,7 @@ namespace netnje.Structures
 
         public SignInRecord(byte[] SignInRecordBytes)
         {
-            this.ParseSignInRecord(SignInRecordBytes);
+            this.ParseBytes(SignInRecordBytes);
         }
 
         public SignInRecord()
@@ -53,7 +53,7 @@ namespace netnje.Structures
             return RecordBytes;
         }
 
-        private void ParseSignInRecord(byte[] SignInRecordBytes)
+        public void ParseBytes(byte[] SignInRecordBytes)
         {
             byte[] RemoteNodeEBCDIC = new byte[8];
             byte[] LocalNodeEBCDIC = new byte[8];

@@ -7,18 +7,15 @@ namespace netnje.Structures
 {
     class DataRecord
     {
-        public byte[] RCB { get; set; }
-        public byte[] SRCB { get; set; }
         public byte[] Data { get; set; }
 
         public byte[] DLSTX { get; set; }
 
+        public byte[] FCS { get; set; }
+
         public byte ServerSequence { get; set; }
 
-        public bool IsHeartbeat { get; set; }
-        public bool IsUnknown { get; set; }
-
-        public bool IsSignInRecord { get; set; }
+        public List<IRecord> Records { get; set; }
 
         
 
@@ -26,8 +23,10 @@ namespace netnje.Structures
 
         public DataRecord(byte[] Data)
         {
+            Records = new List<IRecord>();
             this.Data = Data;
             ParseRecord();
+            FCS = new byte[2];
         }
 
         private void ParseRecord()
@@ -36,7 +35,7 @@ namespace netnje.Structures
 
             if (Data.Length == 6)
             {
-                this.IsHeartbeat = true;
+                Records.Add(new HeartbeatRecord());
             } else
             {
                 if (Data.Length > 2)
@@ -45,12 +44,11 @@ namespace netnje.Structures
                     Array.Copy(Data, 0, DLSTX, 0, 2);
                     ServerSequence = Data[2];
 
+                    FCS[0] = Data[3];
+                    FCS[1] = Data[4];
 
 
 
-                } else
-                {
-                    this.IsUnknown = true;
                 }
             }
 

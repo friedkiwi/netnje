@@ -252,7 +252,7 @@ namespace netnje
 
                 log.InfoFormat("Received {0} records", result.Count);
 
-                for (DataRecord record in result)
+                foreach (DataRecord record in result)
                 {
                     
                 }
