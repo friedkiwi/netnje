@@ -482,7 +482,10 @@ namespace netnje
                 if (individualRecord.Length == 6)
                 {
                     receivedRecords.Add(new HeartbeatRecord());
-                } else
+                } else if (individualRecord.Length == 2)
+                {
+                    receivedRecords.Add(new SimpleResultRecord(individualRecord));
+                } else 
                 {
                     byte RecordRCB = individualRecord[0];
                     byte RecordSRCB = individualRecord[1];
@@ -501,9 +504,13 @@ namespace netnje
                         Array.Copy(individualRecord, RecordData, RecordData.Length);
                     }
 
+                    // determine record type
                     if (RecordRCB == NjeClient.SignInRecord)
                     {
                         receivedRecords.Add(new SignInRecord(RecordData));
+                    } else
+                    {
+                        receivedRecords.Add(new UnknownRecord(RecordData));
                     }
 
                 }
