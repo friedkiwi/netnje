@@ -13,11 +13,16 @@ namespace netnje.Structures
         public string RemoteNode { get; set; }
         public string LocalNode { get; set; }
 
+        private byte[] _originalData;
+
+        public byte[] Data => _originalData;
+
         private readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        public SignInRecord(byte[] SignInRecordBytes)
+        public SignInRecord(byte[] RecordBytes)
         {
-            this.ParseBytes(SignInRecordBytes);
+            _originalData = RecordBytes;
+            this.ParseBytes(RecordBytes);
         }
 
         public SignInRecord()

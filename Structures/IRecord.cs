@@ -7,7 +7,8 @@ namespace netnje.Structures
 {
     interface IRecord
     {
-        void ParseBytes(byte[] SignInRecordBytes);
+        void ParseBytes(byte[] RecordBytes);
         byte[] GetBytes();
+        byte[] Data { get; }
     }
 }

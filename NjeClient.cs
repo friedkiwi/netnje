@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using netnje.Structures;
 using System.Threading;
 using System.IO;
+using System.Runtime.Remoting.Channels;
 
 namespace netnje
 {
@@ -17,6 +18,7 @@ namespace netnje
         private NetworkStream tcpStream;
         private bool _isSuccessfullyConnected = false;
         private byte sequence = 0x80;
+        private byte ServerSequence = 0;
 
         public string ClientNodeID { get; set; }
         public string ServerNodeID { get; set; }
@@ -25,6 +27,7 @@ namespace netnje
 
         // Funcion Control Sequence
         private byte[] FCS = new byte[2];
+        private byte[] ServerFCS = new byte[2];
 
         public bool IsConnected
         {
@@ -108,7 +111,7 @@ namespace netnje
                 responseMS.Write(rbuffer, 0, nR);
             }
 
-            List<DataRecord> result = ProcessData(responseMS.ToArray());
+            List<IRecord> result = ProcessData(responseMS.ToArray());
 
 
             if (result[0].Data[0] == 0x10 && result[0].Data[1] == 0x70)
@@ -248,11 +251,11 @@ namespace netnje
                     responseMS.Write(rbuffer, 0, nR);
                 }
 
-                List<DataRecord> result = ProcessData(responseMS.ToArray());
+                List<IRecord> result = ProcessData(responseMS.ToArray());
 
                 log.InfoFormat("Received {0} records", result.Count);
 
-                foreach (DataRecord record in result)
+                foreach (var record in result)
                 {
                     
                 }
@@ -428,7 +431,12 @@ namespace netnje
             return BytesLeft;
         }
 
-        private List<DataRecord> ProcessData(byte[] dataReceived)
+        private bool IsCompressed(byte RCB)
+        {
+            return false;
+        }
+
+        private List<IRecord> ProcessData(byte[] dataReceived)
         {
             // extract record length
             byte[] dataLen = new byte[2];
@@ -444,7 +452,7 @@ namespace netnje
 
             log.DebugFormat("[{0}] Total length received: {1}", this.ServerNodeID, i16_totalLength);
 
-            List<DataRecord> receivedRecords = new List<DataRecord>();
+            List<IRecord> receivedRecords = new List<IRecord>();
 
             while (offset  < dataReceived.Length - 12)
             {
@@ -470,7 +478,37 @@ namespace netnje
 
                 byte[] individualRecord = new byte[recordLength];
                 Array.Copy(recordSet, offset, individualRecord, 0, recordLength);
-                receivedRecords.Add(new DataRecord(individualRecord));
+
+                if (individualRecord.Length == 6)
+                {
+                    receivedRecords.Add(new HeartbeatRecord());
+                } else
+                {
+                    byte RecordRCB = individualRecord[0];
+                    byte RecordSRCB = individualRecord[1];
+                    ServerSequence = individualRecord[2];
+                    ServerFCS[0] = individualRecord[3];
+                    ServerFCS[1] = individualRecord[4];
+                    byte[] RecordData;
+
+                    if (IsCompressed(RecordRCB))
+                    {
+                        log.DebugFormat("Decompressing received record with RCB '{0:x}' and SRCB '{1:x}'.", RecordRCB, RecordSRCB);
+                        RecordData = new byte[1];
+                    } else
+                    {
+                        RecordData = new byte[individualRecord.Length - 5];
+                        Array.Copy(individualRecord, RecordData, RecordData.Length);
+                    }
+
+                    if (RecordRCB == NjeClient.SignInRecord)
+                    {
+                        receivedRecords.Add(new SignInRecord(RecordData));
+                    }
+
+                }
+
+                
                 offset += recordLength;
                 if (lastRecord)
                     offset++;

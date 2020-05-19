@@ -56,6 +56,7 @@
     <Compile Include="Structures\HeartbeatRecord.cs" />
     <Compile Include="Structures\IRecord.cs" />
     <Compile Include="Structures\SignInRecord.cs" />
+    <Compile Include="Structures\UnknownRecord.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>

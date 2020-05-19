@@ -12,6 +12,8 @@ namespace netnje.Structures
 
         }
 
+        public byte[] Data => new byte[6];
+
         public byte[] GetBytes()
         {
             return new byte[6];
